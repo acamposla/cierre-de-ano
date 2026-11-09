@@ -1,0 +1,14 @@
+# Los datos se regeneran con la semilla
+datos/
+informe/*_files/
+informe/.quarto/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+.DS_Store
+.env
+informe/cierre.html

@@ -1,0 +1,16 @@
+/* Lectura de dirección: letra grande, sin ruido, y que se imprima en horizontal sin perder color. */
+body { font-size: 17px; color: #16161a; background: #fbfbf9; }
+h2 { margin-top: 2.6rem; font-weight: 700; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem;
+  margin: 1.2rem 0 1.6rem; }
+.kpi { border-top: 3px solid #dededa; padding-top: .6rem; color: #55555f; font-size: .95rem; }
+.kpi strong { display: block; font-size: 1.7rem; color: #16161a; }
+.kpi.alerta { border-top-color: #9a3412; }
+.kpi.alerta strong { color: #9a3412; }
+figcaption { color: #55555f; font-size: .9rem; }
+@media print {
+  @page { size: landscape; margin: 12mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .btn, #TOC, nav { display: none !important; }
+  h2 { break-before: page; }
+}

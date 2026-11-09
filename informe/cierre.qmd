@@ -1,0 +1,189 @@
+---
+title: "Cierre 2025: ¿crecemos sano?"
+subtitle: "Distribuidor ficticio · datos sintéticos generados con `cierre.datos`"
+lang: es
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: "En este informe"
+    toc-location: left
+    page-layout: full
+    fig-format: png
+    fig-dpi: 110
+    css: estilo.css
+execute:
+  echo: false
+  warning: false
+jupyter: python3
+---
+
+```{python}
+import pandas as pd
+from IPython.display import Markdown
+
+from cierre import graficos as g
+from cierre import metricas as m
+from cierre.datos import generar
+
+ventas = generar()
+r = m.resumen(ventas)
+fam = m.variacion(ventas, "familia")
+ramo = m.variacion(ventas, "ramo")
+cruce = m.variacion(ventas, ["familia", "ramo"])
+puente = m.puente_clientes(ventas)
+
+
+def eur(x):
+    return f"{x / 1e6:,.2f} M€".replace(".", ",")
+
+
+def pct(x, signo=False):
+    s = f"{x:+.1%}" if signo else f"{x:.1%}"
+    return s.replace(".", ",").replace("%", " %")
+
+
+def tabla(df, columnas, nombres):
+    t = df[columnas].copy()
+    for c in t.columns:
+        if c.startswith(("ventas", "margen", "var_ventas", "var_margen")):
+            t[c] = t[c].map(lambda v: f"{v:,.0f} €".replace(",", "."))
+        elif c.startswith("pct"):
+            t[c] = t[c].map(lambda v: pct(v))
+        elif c == "var_pp":
+            t[c] = t[c].map(lambda v: f"{v:+.1f}".replace(".", ","))
+    t.columns = nombres
+    return Markdown(m.tabla_markdown(t))
+```
+
+## La respuesta corta
+
+::: {.kpis}
+::: {.kpi}
+**`{python} eur(r["ventas_2025"])`**
+ventas, `{python} pct(r["var_ventas"], True)`
+:::
+::: {.kpi .alerta}
+**`{python} eur(r["margen_2025"])`**
+margen, `{python} pct(r["var_margen"], True)`
+:::
+::: {.kpi .alerta}
+**`{python} pct(r["pct_2025"])`**
+margen sobre ventas (`{python} pct(r["pct_2024"])` en 2024)
+:::
+::: {.kpi}
+**`{python} r["clientes_2025"]`**
+clientes (`{python} r["clientes_2024"]` en 2024)
+:::
+:::
+
+No. La facturación crece, pero el margen en euros cae: se vende más y se gana menos. Las
+siguientes páginas buscan dónde está la diferencia, en este orden: clientes, familias, precio y
+canal. Las tablas están al final, en los anexos, para no interrumpir la lectura.
+
+## ¿De dónde sale el crecimiento?
+
+```{python}
+#| fig-cap: "Cada tramo lleva su importe y cuántos clientes lo explican."
+g.cascada(puente)
+```
+
+El crecimiento viene de clientes nuevos y de clientes que compran más. En contra juegan los que
+se han ido y los que siguen pero compran menos: separarlos importa, porque a uno se le recupera y
+al otro se le vende más.
+
+[Ver la tabla del puente](#anexo-puente){.btn .btn-outline-secondary .btn-sm}
+
+## ¿Qué familias crecen y cuáles pierden?
+
+```{python}
+g.barras_familia(fam)
+```
+
+Cada barra lleva la variación en euros y la de clientes; junto al nombre, el cambio de margen en
+puntos. Con las dos cifras en la misma etiqueta se distinguen tres problemas distintos:
+
+- **Focos de exterior** pierde poco dinero, pero muchos clientes: es una **fuga**.
+- **Cables** pierde dinero con los mismos clientes: es **menor consumo**.
+- **Bombillas** crece en ventas y es la que más margen pierde: es **precio**.
+
+[Ver la tabla por familia](#anexo-familia){.btn .btn-outline-secondary .btn-sm}
+
+## ¿Dónde se pierde el margen?
+
+```{python}
+g.treemap(fam)
+```
+
+El tamaño es lo que vende cada familia; el color, cuánto ha cambiado su margen. La familia más
+grande es la que más margen ha perdido, y por eso arrastra la cifra total.
+
+```{python}
+g.pesas(fam)
+```
+
+[Ver la tabla por familia](#anexo-familia){.btn .btn-outline-secondary .btn-sm}
+
+## ¿Es un problema de canal?
+
+```{python}
+g.canales(ramo)
+```
+
+Un canal crece mucho más deprisa que los demás con un margen muy por debajo de la media. Aunque
+cada canal mantuviera su margen, el peso creciente de ese canal bajaría el porcentaje total.
+
+```{python}
+g.paneles(cruce, ["Bombillas", "Focos de exterior", "Cables", "Iluminación solar"])
+```
+
+Vista familia a familia, la fuga de Focos de exterior está en un solo canal, Ferretería; el menor
+consumo de Cables se reparte por todos los canales tradicionales; y la Iluminación solar crece en
+todos con clientes nuevos.
+
+[Ver la tabla por canal](#anexo-canal){.btn .btn-outline-secondary .btn-sm}
+
+## Qué llevaría al comité
+
+1. **Bombillas:** revisar precio y condiciones antes de defender volumen. Crece en ventas y es la
+   familia que más margen pierde.
+2. **Focos de exterior en Ferretería:** llamar a los clientes perdidos uno a uno. Es una fuga
+   localizada en un canal, no un problema de producto.
+3. **Online:** decidir con qué margen se quiere crecer ahí, porque su peso ya mueve el total.
+4. **Iluminación solar:** proteger lo que funciona. Crece en todos los canales con clientes
+   nuevos y casi sin perder margen.
+
+# Anexos {.appendix}
+
+## Puente de ventas por clientes {#anexo-puente}
+
+```{python}
+t = puente.copy()
+t["importe"] = t["importe"].map(lambda v: f"{v:,.0f} €".replace(",", "."))
+t["clientes"] = t["clientes"].map(lambda v: "" if pd.isna(v) else f"{int(v)}")
+Markdown(m.tabla_markdown(t.rename(columns={"tramo": "Tramo", "importe": "Importe",
+                                            "clientes": "Clientes"})))
+```
+
+## Por familia {#anexo-familia}
+
+```{python}
+tabla(fam.sort_values("ventas_2025", ascending=False),
+      ["familia", "ventas_2024", "ventas_2025", "var_ventas", "var_clientes", "pct_2024",
+       "pct_2025", "var_pp"],
+      ["Familia", "Ventas 2024", "Ventas 2025", "Variación", "Clientes", "Margen 2024",
+       "Margen 2025", "Puntos"])
+```
+
+Familias por debajo de 1.000 € en los dos años, fuera de los gráficos y de esta tabla:
+`{python} f"{fam.attrs['ruido']:,.0f} €".replace(",", ".")` en 2025.
+
+## Por canal {#anexo-canal}
+
+```{python}
+tabla(ramo.sort_values("ventas_2025", ascending=False),
+      ["ramo", "ventas_2024", "ventas_2025", "var_ventas", "var_clientes", "pct_2024",
+       "pct_2025", "var_pp"],
+      ["Canal", "Ventas 2024", "Ventas 2025", "Variación", "Clientes", "Margen 2024",
+       "Margen 2025", "Puntos"])
+```
